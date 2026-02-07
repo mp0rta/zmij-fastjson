@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="294" viewBox="0 0 920 294">
+<style>
+  .title { font: 600 20px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #111827; }
+  .subtitle { font: 400 13px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #6b7280; }
+  .label { font: 600 13px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #111827; }
+  .meta { font: 400 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #374151; }
+  .axis { stroke: #e5e7eb; stroke-width: 1; }
+  .bar { fill: #2563eb; }
+  .barbg { fill: #eef2ff; }
+  .value { font: 700 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; fill: #111827; }
+</style>
+<rect x="0" y="0" width="100%" height="100%" fill="#ffffff"/>
+<text x="220" y="30" class="title">zmij-fastjson vs stdlib json</text>
+<text x="220" y="52" class="subtitle">Measured on 2026-02-04 (see bench/README.md)</text>
+<line x1="242.1" y1="82" x2="242.1" y2="274" class="axis"/>
+<text x="246.1" y="78" class="subtitle">1×</text>
+<line x1="330.5" y1="82" x2="330.5" y2="274" class="axis"/>
+<text x="334.5" y="78" class="subtitle">5×</text>
+<line x1="440.9" y1="82" x2="440.9" y2="274" class="axis"/>
+<text x="444.9" y="78" class="subtitle">10×</text>
+<line x1="661.8" y1="82" x2="661.8" y2="274" class="axis"/>
+<text x="665.8" y="78" class="subtitle">20×</text>
+<line x1="882.8" y1="82" x2="882.8" y2="274" class="axis"/>
+<text x="886.8" y="78" class="subtitle">30×</text>
+<text x="30" y="110" class="label">1e4</text>
+<rect x="220" y="98" width="670" height="14" rx="7" class="barbg"/>
+<rect x="220" y="98" width="609.1" height="14" rx="7" class="bar"/>
+<text x="220" y="132" class="meta">stdlib json=8.05 ms  zmij-fastjson=292 µs</text>
+<text x="830.0" y="109" class="value">27.6×</text>
+<text x="30" y="164" class="label">1e5</text>
+<rect x="220" y="152" width="670" height="14" rx="7" class="barbg"/>
+<rect x="220" y="152" width="604.9" height="14" rx="7" class="bar"/>
+<text x="220" y="186" class="meta">stdlib json=80.3 ms  zmij-fastjson=2.93 ms</text>
+<text x="830.0" y="163" class="value">27.4×</text>
+<text x="30" y="218" class="label">mixed_1e5_nulls</text>
+<rect x="220" y="206" width="670" height="14" rx="7" class="barbg"/>
+<rect x="220" y="206" width="527.8" height="14" rx="7" class="bar"/>
+<text x="220" y="240" class="meta">stdlib json=75.3 ms  zmij-fastjson=3.15 ms</text>
+<text x="755.8" y="217" class="value">23.9×</text>
+</svg>
