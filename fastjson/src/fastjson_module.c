@@ -23,6 +23,9 @@ typedef struct {
     size_t capacity;
 } Buffer;
 
+static int buffer_append(Buffer* buf, const char* str, size_t len);
+static int buffer_append_char(Buffer* buf, char c);
+
 static int needs_dot0(const char* s, size_t len) {
     for (size_t i = 0; i < len; i++) {
         char c = s[i];
@@ -31,6 +34,39 @@ static int needs_dot0(const char* s, size_t len) {
         }
     }
     return 1;
+}
+
+static int buffer_append_finite_double(Buffer* buf, double x) {
+    char buf_double[zmij_double_buffer_size];
+    size_t len = zmij_write_double(buf_double, sizeof(buf_double), x);
+    if (buffer_append(buf, buf_double, len) < 0) {
+        return -1;
+    }
+    if (needs_dot0(buf_double, len)) {
+        if (buffer_append(buf, ".0", 2) < 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int buffer_append_double_json(Buffer* buf, double x, int allow_nan) {
+    if (!isfinite(x)) {
+        if (!allow_nan) {
+            PyErr_SetString(PyExc_ValueError,
+                "Out of range float values are not JSON compliant");
+            return -1;
+        }
+        if (isnan(x)) {
+            return buffer_append(buf, "NaN", 3);
+        }
+        if (x > 0) {
+            return buffer_append(buf, "Infinity", 8);
+        }
+        return buffer_append(buf, "-Infinity", 9);
+    }
+
+    return buffer_append_finite_double(buf, x);
 }
 
 static int buffer_init(Buffer* buf, size_t initial_capacity) {
@@ -249,30 +285,7 @@ dumps_sequence_hybrid(PyObject* obj, PyObject* ensure_ascii, int allow_nan, PyOb
 
         if (PyFloat_CheckExact(item)) {
             double x = PyFloat_AS_DOUBLE(item);
-            if (!isfinite(x)) {
-                if (!allow_nan) {
-                    PyErr_SetString(PyExc_ValueError,
-                        "Out of range float values are not JSON compliant");
-                    goto error;
-                }
-                if (isnan(x)) {
-                    if (buffer_append(&buf, "NaN", 3) < 0) goto error;
-                }
-                else if (x > 0) {
-                    if (buffer_append(&buf, "Infinity", 8) < 0) goto error;
-                }
-                else {
-                    if (buffer_append(&buf, "-Infinity", 9) < 0) goto error;
-                }
-            }
-            else {
-                char buf_double[zmij_double_buffer_size];
-                size_t len = zmij_write_double(buf_double, sizeof(buf_double), x);
-                if (buffer_append(&buf, buf_double, len) < 0) goto error;
-                if (needs_dot0(buf_double, len)) {
-                    if (buffer_append(&buf, ".0", 2) < 0) goto error;
-                }
-            }
+            if (buffer_append_double_json(&buf, x, allow_nan) < 0) goto error;
         }
         else if (item == Py_None) {
             if (buffer_append(&buf, "null", 4) < 0) goto error;
@@ -376,37 +389,7 @@ dumps_float_sequence(PyObject* obj, int allow_nan, const char* item_sep, Py_ssiz
     /* Format each float */
     for (Py_ssize_t i = 0; i < n; i++) {
         double x = PyFloat_AS_DOUBLE(items[i]);
-        
-        /* Check for non-finite */
-        if (!isfinite(x)) {
-            if (!allow_nan) {
-                PyErr_SetString(PyExc_ValueError, 
-                    "Out of range float values are not JSON compliant");
-                goto error;
-            }
-            /* Output NaN/Infinity as strings */
-            if (isnan(x)) {
-                if (buffer_append(&buf, "NaN", 3) < 0) goto error;
-            }
-            else if (x > 0) {
-                if (buffer_append(&buf, "Infinity", 8) < 0) goto error;
-            }
-            else {
-                if (buffer_append(&buf, "-Infinity", 9) < 0) goto error;
-            }
-        }
-        else {
-            /* Format finite float using vitaut/zmij for maximum speed */
-            char buf_double[zmij_double_buffer_size];
-            size_t len = zmij_write_double(buf_double, sizeof(buf_double), x);
-            
-            if (buffer_append(&buf, buf_double, len) < 0) goto error;
-
-            /* Match Python json float formatting: add ".0" if no '.'/'e'/'E' */
-            if (needs_dot0(buf_double, len)) {
-                if (buffer_append(&buf, ".0", 2) < 0) goto error;
-            }
-        }
+        if (buffer_append_double_json(&buf, x, allow_nan) < 0) goto error;
         
         /* Item separator (not after last element) */
         if (i < n - 1) {
