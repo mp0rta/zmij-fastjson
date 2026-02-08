@@ -46,7 +46,7 @@ env/
 htmlcov/
 
 # Benchmark results
-bench/results/*.json
+bench/results/*
 !bench/results/.gitkeep
 
 # Build artifacts
