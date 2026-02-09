@@ -1,7 +1,14 @@
 """pyzmij - Python binding for vitaut/zmij float formatting library."""
 
 try:
-    from ._pyzmij import format_finite, format_many_len, bench_format_many, backend
+    from ._pyzmij import (
+        format,
+        format_finite,
+        format_many,
+        format_many_len,
+        bench_format_many,
+        backend,
+    )
 
     _NATIVE = True
 except ImportError as e:
@@ -11,4 +18,4 @@ except ImportError as e:
         "Please ensure the package is properly built with: uv pip install -e ./pyzmij"
     ) from e
 
-__all__ = ["format_finite", "format_many_len", "backend", "_NATIVE"]
+__all__ = ["format", "format_finite", "format_many", "format_many_len", "backend", "_NATIVE"]

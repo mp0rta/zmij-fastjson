@@ -5,7 +5,9 @@ import pyzmij
 
 def test_import():
     """Test that the module imports correctly."""
+    assert hasattr(pyzmij, 'format')
     assert hasattr(pyzmij, 'format_finite')
+    assert hasattr(pyzmij, 'format_many')
     assert hasattr(pyzmij, 'format_many_len')
     assert hasattr(pyzmij, 'bench_format_many')
 
