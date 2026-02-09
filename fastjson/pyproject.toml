@@ -23,9 +23,5 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
 ]
 
-dependencies = [
-    "pyzmij",
-]
-
 [project.optional-dependencies]
 dev = ["pytest"]
