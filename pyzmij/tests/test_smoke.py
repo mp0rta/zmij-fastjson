@@ -6,6 +6,7 @@ import pyzmij
 def test_import():
     """Test that the module imports correctly."""
     assert hasattr(pyzmij, 'format_finite')
+    assert hasattr(pyzmij, 'format_many_len')
     assert hasattr(pyzmij, 'bench_format_many')
 
 
@@ -33,10 +34,10 @@ def test_format_finite_pi():
     assert '3.14' in result or result == repr(pi)
 
 
-def test_bench_format_many():
+def test_format_many_len():
     """Test batch formatting."""
     floats = [1.0, 2.0, 3.0, 4.0, 5.0]
-    total = pyzmij.bench_format_many(floats)
+    total = pyzmij.format_many_len(floats)
     assert isinstance(total, int)
     assert total > 0
     

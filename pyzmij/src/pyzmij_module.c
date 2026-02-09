@@ -70,14 +70,14 @@ format_finite(PyObject* self, PyObject* args)
 }
 
 /*
- * bench_format_many(seq: Sequence[float]) -> int
+ * format_many_len(seq: Sequence[float]) -> int
  *
  * Batch format floats and return total string length.
  * Uses C-level loop for speed - no Python iteration overhead.
  * Raises TypeError if any element is not a float.
  */
 static PyObject*
-bench_format_many(PyObject* self, PyObject* args)
+format_many_len(PyObject* self, PyObject* args)
 {
     PyObject* seq;
 
@@ -102,7 +102,7 @@ bench_format_many(PyObject* self, PyObject* args)
 
         if (!PyFloat_Check(item)) {
             PyErr_Format(PyExc_TypeError,
-                         "bench_format_many() sequence item %zd must be float, not %.200s",
+                         "format_many_len() sequence item %zd must be float, not %.200s",
                          i, Py_TYPE(item)->tp_name);
             Py_DECREF(fast);
             return NULL;
@@ -149,14 +149,17 @@ static PyMethodDef pyzmij_methods[] = {
      "Raises:\n"
      "    TypeError: If x is not a float\n"
      "    ValueError: If x is NaN or Inf"},
-    {"bench_format_many", bench_format_many, METH_VARARGS,
-     "bench_format_many(seq: Sequence[float]) -> int\n\n"
+    {"format_many_len", format_many_len, METH_VARARGS,
+     "format_many_len(seq: Sequence[float]) -> int\n\n"
      "Batch format floats and return total string length.\n\n"
      "Uses C-level loop for maximum speed. All items must be floats.\n\n"
      "Args:\n"
      "    seq: Sequence of float values\n\n"
      "Returns:\n"
      "    Total length of all formatted strings"},
+    {"bench_format_many", format_many_len, METH_VARARGS,
+     "bench_format_many(seq: Sequence[float]) -> int\n\n"
+     "Deprecated alias of format_many_len()."},
     {"backend", backend, METH_NOARGS,
      "backend() -> str\n\n"
      "Return the backend name being used ('portable' or 'refcpp')."},

@@ -96,7 +96,7 @@ Bench labels in the chart:
 
 - **pyzmij**: Python C extension using vitaut/zmij
   - `format_finite()`: Fast float-to-string conversion
-  - `bench_format_many()`: Batch formatting for benchmarks
+  - `format_many_len()`: Batch formatting and total output length
   - Backend: vendored vitaut/zmij (see `pyzmij/third_party/` and `pyzmij/VENDORED.md`)
 
 - **fastjson**: High-performance JSON serializer
