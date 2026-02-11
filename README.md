@@ -11,7 +11,7 @@ zmij-fastjson/
 └── tools/          # Utility scripts
 ```
 
-## What’s Here
+## What's Here
 
 - **`fastjson`**: Drop-in replacement for the standard library `json` module, with native fast paths for large
   `list[float]` / `tuple[float]` (and some float-heavy sequences).
@@ -20,8 +20,11 @@ zmij-fastjson/
   - Performance: when the input and options are supported by the native fast paths (for example float sequences with
     stdlib-default or compact separators), `fastjson` bypasses stdlib and formats directly in C.
   - `separators=` may be any length-2 string sequence (tuple/list). Unsupported separators fall back to stdlib.
+  - **`dumps_ndarray()`**: serialize numpy `ndarray` (float32/float64, 1D/2D) directly to JSON with zero Python
+    object allocation. ~26x faster than `ndarray.tolist()` + `dumps()`. numpy is optional — not required at
+    build time or runtime for other functions.
 
-If your workload is “big numeric arrays -> JSON”, this repo is designed to help.
+If your workload is "big numeric arrays -> JSON", this repo is designed to help.
 
 ## Development Setup (uv)
 
@@ -85,8 +88,9 @@ Bench labels in the chart:
 
 - **fastjson**: high-performance JSON serializer
   - Fast path: `list[float]` / `tuple[float]` using C directly
+  - ndarray path: `dumps_ndarray()` for numpy arrays via PEP 3118 buffer protocol
   - Slow path: fallback to stdlib `json.dumps()` for other types
-  - NaN/Inf handling with `allow_nan` parameter
+  - NaN/Inf handling with `allow_nan` parameter (dumps) and `nan` parameter (dumps_ndarray)
 
 - **Benchmarks**: pyperf-based comparison suite
 
