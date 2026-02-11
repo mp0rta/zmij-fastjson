@@ -24,6 +24,9 @@ uv run python bench/pyperf_json.py -o bench/results/json.json
 
 # Macro-benchmark (complex structures)
 uv run python bench/pyperf_macro.py -o bench/results/macro.json
+
+# ndarray benchmark (requires numpy)
+uv run python bench/pyperf_ndarray.py -o bench/results/ndarray.json
 ```
 
 ## Viewing Results
@@ -44,5 +47,6 @@ python3 tools/plot_pyperf_svg.py bench/results/json.json -o bench/plots/json_spe
 - **pyperf_float.py**: Tests individual float formatting performance
 - **pyperf_json.py**: Tests JSON serialization with realistic data patterns
 - **pyperf_macro.py**: Tests complex nested structures simulating real workloads
+- **pyperf_ndarray.py**: Tests numpy ndarray serialization (tolist baselines vs dumps_ndarray)
 
 Results are written to `bench/results/` (gitignored except .gitkeep).
