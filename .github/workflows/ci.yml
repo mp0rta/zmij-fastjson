@@ -36,6 +36,7 @@ jobs:
           python -m venv .venv-test
           .venv-test/bin/python -m pip install -U pip
           .venv-test/bin/python -m pip install fastjson/dist/*.whl
+          .venv-test/bin/python -m pip install pytest
 
       - name: Create clean venv (Windows)
         if: runner.os == 'Windows'
@@ -45,6 +46,7 @@ jobs:
           $fastjsonWheels = @(Get-ChildItem -Path fastjson/dist -Filter "*.whl")
           if ($fastjsonWheels.Count -ne 1) { throw "Expected exactly 1 fastjson wheel, found $($fastjsonWheels.Count)" }
           .venv-test\Scripts\python -m pip install $fastjsonWheels[0].FullName
+          .venv-test\Scripts\python -m pip install pytest
 
       - name: Smoke import (Unix)
         if: runner.os != 'Windows'
@@ -97,6 +99,7 @@ jobs:
           python -m venv .venv-sdist
           .venv-sdist/bin/python -m pip install -U pip
           .venv-sdist/bin/python -m pip install fastjson/dist/*.tar.gz
+          .venv-sdist/bin/python -m pip install pytest
 
       - name: Install from sdist in clean venv (Windows)
         if: runner.os == 'Windows'
@@ -106,6 +109,7 @@ jobs:
           $fastjsonSdists = @(Get-ChildItem -Path fastjson/dist -Filter "*.tar.gz")
           if ($fastjsonSdists.Count -ne 1) { throw "Expected exactly 1 fastjson sdist, found $($fastjsonSdists.Count)" }
           .venv-sdist\Scripts\python -m pip install $fastjsonSdists[0].FullName
+          .venv-sdist\Scripts\python -m pip install pytest
 
       - name: Smoke import (Unix)
         if: runner.os != 'Windows'
