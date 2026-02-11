@@ -110,4 +110,3 @@ Bench labels in the chart:
 
 - Expand edge-case coverage (subnormals, max/min finite values).
 - Add fuzz/property-based tests for robustness.
-- Extend benchmark comparisons (e.g. orjson, ujson) on numeric-array workloads.
