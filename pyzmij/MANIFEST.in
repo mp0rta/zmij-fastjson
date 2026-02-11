@@ -1,6 +1,0 @@
-recursive-include python *.py
-recursive-include src *.c
-recursive-include third_party *
-include README.md
-include pyproject.toml
-include setup.py

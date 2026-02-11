@@ -49,6 +49,7 @@ separators (`separators=(',', ':')`).
 It is *not* a general-purpose replacement for `json` on arbitrary nested objects; for top-level `dict`
 and deeply mixed structures it will typically fall back to stdlib and be about the same speed.
 
+
 ![Benchmark speedup chart](../bench/plots/json_speedup.svg)
 
 Chart labels:

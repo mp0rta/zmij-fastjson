@@ -25,56 +25,40 @@ jobs:
           allow-prereleases: true
 
       - name: Upgrade build tooling
-        run: python -m pip install -U pip setuptools wheel build
+        run: python -m pip install -U pip setuptools wheel build pytest
 
       - name: Build artifacts (sdist + wheel)
-        run: |
-          python -m build pyzmij -s -w
-          python -m build fastjson -s -w
+        run: python -m build fastjson -s -w
 
       - name: Create clean venv (Unix)
         if: runner.os != 'Windows'
         run: |
           python -m venv .venv-test
-          .venv-test/bin/python -m pip install -U pip pytest
+          .venv-test/bin/python -m pip install -U pip
+          .venv-test/bin/python -m pip install fastjson/dist/*.whl
 
       - name: Create clean venv (Windows)
         if: runner.os == 'Windows'
         run: |
           python -m venv .venv-test
-          .venv-test\Scripts\python -m pip install -U pip pytest
-
-      - name: Install wheels into clean venv (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          .venv-test/bin/python -m pip install pyzmij/dist/*.whl
-          .venv-test/bin/python -m pip install fastjson/dist/*.whl
-
-      - name: Install wheels into clean venv (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          $pyzmijWheels = @(Get-ChildItem -Path pyzmij/dist -Filter "*.whl")
-          if ($pyzmijWheels.Count -ne 1) { throw "Expected exactly 1 pyzmij wheel, found $($pyzmijWheels.Count)" }
-          .venv-test\Scripts\python -m pip install $pyzmijWheels[0].FullName
-
+          .venv-test\Scripts\python -m pip install -U pip
           $fastjsonWheels = @(Get-ChildItem -Path fastjson/dist -Filter "*.whl")
           if ($fastjsonWheels.Count -ne 1) { throw "Expected exactly 1 fastjson wheel, found $($fastjsonWheels.Count)" }
           .venv-test\Scripts\python -m pip install $fastjsonWheels[0].FullName
 
       - name: Smoke import (Unix)
         if: runner.os != 'Windows'
-        run: .venv-test/bin/python -c "import pyzmij, fastjson; print('ok')"
+        run: .venv-test/bin/python -c "import fastjson; print('ok')"
 
       - name: Smoke import (Windows)
         if: runner.os == 'Windows'
-        run: .venv-test\Scripts\python -c "import pyzmij, fastjson; print('ok')"
+        run: .venv-test\Scripts\python -c "import fastjson; print('ok')"
 
       - name: Run tests from a temp working directory (Unix)
         if: runner.os != 'Windows'
         run: |
           tmpdir="$(mktemp -d)"
           cd "$tmpdir"
-          "$GITHUB_WORKSPACE/.venv-test/bin/python" -m pytest -q --import-mode=importlib "$GITHUB_WORKSPACE/pyzmij/tests/" --ignore="$GITHUB_WORKSPACE/pyzmij/tests/test_repr_compat.py"
           "$GITHUB_WORKSPACE/.venv-test/bin/python" -m pytest -q --import-mode=importlib "$GITHUB_WORKSPACE/fastjson/tests/"
 
       - name: Run tests from a temp working directory (Windows)
@@ -82,7 +66,6 @@ jobs:
         run: |
           $tmp = New-Item -ItemType Directory -Force -Path (Join-Path $env:RUNNER_TEMP "pytest-tmp")
           Set-Location $tmp.FullName
-          & "$env:GITHUB_WORKSPACE\\.venv-test\\Scripts\\python" -m pytest -q --import-mode=importlib "$env:GITHUB_WORKSPACE\\pyzmij\\tests\\" --ignore="$env:GITHUB_WORKSPACE\\pyzmij\\tests\\test_repr_compat.py"
           & "$env:GITHUB_WORKSPACE\\.venv-test\\Scripts\\python" -m pytest -q --import-mode=importlib "$env:GITHUB_WORKSPACE\\fastjson\\tests\\"
 
   sdist-install-test:
@@ -103,56 +86,40 @@ jobs:
           allow-prereleases: true
 
       - name: Upgrade build tooling
-        run: python -m pip install -U pip setuptools wheel build
+        run: python -m pip install -U pip setuptools wheel build pytest
 
       - name: Build sdist
-        run: |
-          python -m build pyzmij -s
-          python -m build fastjson -s
-
-      - name: Create clean venv (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          python -m venv .venv-sdist
-          .venv-sdist/bin/python -m pip install -U pip pytest
-
-      - name: Create clean venv (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          python -m venv .venv-sdist
-          .venv-sdist\Scripts\python -m pip install -U pip pytest
+        run: python -m build fastjson -s
 
       - name: Install from sdist in clean venv (Unix)
         if: runner.os != 'Windows'
         run: |
-          .venv-sdist/bin/python -m pip install pyzmij/dist/*.tar.gz
+          python -m venv .venv-sdist
+          .venv-sdist/bin/python -m pip install -U pip
           .venv-sdist/bin/python -m pip install fastjson/dist/*.tar.gz
 
       - name: Install from sdist in clean venv (Windows)
         if: runner.os == 'Windows'
         run: |
-          $pyzmijSdists = @(Get-ChildItem -Path pyzmij/dist -Filter "*.tar.gz")
-          if ($pyzmijSdists.Count -ne 1) { throw "Expected exactly 1 pyzmij sdist, found $($pyzmijSdists.Count)" }
-          .venv-sdist\Scripts\python -m pip install $pyzmijSdists[0].FullName
-
+          python -m venv .venv-sdist
+          .venv-sdist\Scripts\python -m pip install -U pip
           $fastjsonSdists = @(Get-ChildItem -Path fastjson/dist -Filter "*.tar.gz")
           if ($fastjsonSdists.Count -ne 1) { throw "Expected exactly 1 fastjson sdist, found $($fastjsonSdists.Count)" }
           .venv-sdist\Scripts\python -m pip install $fastjsonSdists[0].FullName
 
       - name: Smoke import (Unix)
         if: runner.os != 'Windows'
-        run: .venv-sdist/bin/python -c "import pyzmij, fastjson; print('ok')"
+        run: .venv-sdist/bin/python -c "import fastjson; print('ok')"
 
       - name: Smoke import (Windows)
         if: runner.os == 'Windows'
-        run: .venv-sdist\Scripts\python -c "import pyzmij, fastjson; print('ok')"
+        run: .venv-sdist\Scripts\python -c "import fastjson; print('ok')"
 
       - name: Run tests from a temp working directory (Unix)
         if: runner.os != 'Windows'
         run: |
           tmpdir="$(mktemp -d)"
           cd "$tmpdir"
-          "$GITHUB_WORKSPACE/.venv-sdist/bin/python" -m pytest -q --import-mode=importlib "$GITHUB_WORKSPACE/pyzmij/tests/" --ignore="$GITHUB_WORKSPACE/pyzmij/tests/test_repr_compat.py"
           "$GITHUB_WORKSPACE/.venv-sdist/bin/python" -m pytest -q --import-mode=importlib "$GITHUB_WORKSPACE/fastjson/tests/"
 
       - name: Run tests from a temp working directory (Windows)
@@ -160,5 +127,4 @@ jobs:
         run: |
           $tmp = New-Item -ItemType Directory -Force -Path (Join-Path $env:RUNNER_TEMP "pytest-tmp-sdist")
           Set-Location $tmp.FullName
-          & "$env:GITHUB_WORKSPACE\\.venv-sdist\\Scripts\\python" -m pytest -q --import-mode=importlib "$env:GITHUB_WORKSPACE\\pyzmij\\tests\\" --ignore="$env:GITHUB_WORKSPACE\\pyzmij\\tests\\test_repr_compat.py"
           & "$env:GITHUB_WORKSPACE\\.venv-sdist\\Scripts\\python" -m pytest -q --import-mode=importlib "$env:GITHUB_WORKSPACE\\fastjson\\tests\\"

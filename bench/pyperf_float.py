@@ -17,11 +17,11 @@ def main():
     import pyzmij  # your extension
 
     # 1) C-loop benchmark (preferred)
-    runner.bench_func("pyzmij.bench_format_many/fixed", lambda: pyzmij.bench_format_many(fixed))
-    runner.bench_func("pyzmij.bench_format_many/rand_bits", lambda: pyzmij.bench_format_many(rand_bits))
-    runner.bench_func("pyzmij.bench_format_many/json_like", lambda: pyzmij.bench_format_many(json_like))
-    runner.bench_func("pyzmij.bench_format_many/near0", lambda: pyzmij.bench_format_many(near0))
-    runner.bench_func("pyzmij.bench_format_many/ints", lambda: pyzmij.bench_format_many(ints))
+    runner.bench_func("pyzmij.format_many_len/fixed", lambda: pyzmij.format_many_len(fixed))
+    runner.bench_func("pyzmij.format_many_len/rand_bits", lambda: pyzmij.format_many_len(rand_bits))
+    runner.bench_func("pyzmij.format_many_len/json_like", lambda: pyzmij.format_many_len(json_like))
+    runner.bench_func("pyzmij.format_many_len/near0", lambda: pyzmij.format_many_len(near0))
+    runner.bench_func("pyzmij.format_many_len/ints", lambda: pyzmij.format_many_len(ints))
 
     # 2) Baseline repr in Python loop (less precise, but useful as a quick baseline)
     def py_repr_sum(xs):
