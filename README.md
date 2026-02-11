@@ -106,8 +106,8 @@ Bench labels in the chart:
 
 - **Benchmarks**: pyperf-based comparison suite
 
-## TODO
+## Roadmap
 
-- [ ] Add comprehensive test vectors for edge cases (subnormals, max/min values)
-- [ ] Add fuzzing tests for robustness
-- [ ] Benchmark vs other JSON serializers (e.g. orjson, ujson) on numeric-array workloads
+- Expand edge-case coverage (subnormals, max/min finite values).
+- Add fuzz/property-based tests for robustness.
+- Extend benchmark comparisons (e.g. orjson, ujson) on numeric-array workloads.
