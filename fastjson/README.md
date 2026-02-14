@@ -36,7 +36,37 @@ uv pip install -e .
 - Fast path for exact float sequences
 - Slow path delegates to stdlib `json.dumps()`
 
-## When It’s Fast
+## numpy ndarray support
+
+`dumps_ndarray()` serializes 1D/2D numpy arrays directly to JSON without creating Python intermediate objects.
+
+```python
+import numpy as np
+import fastjson
+
+# 1D array
+fastjson.dumps_ndarray(np.array([1.0, 2.0, 3.0]))
+# → '[1.0,2.0,3.0]'
+
+# 2D array (e.g. point cloud)
+points = np.random.randn(100_000, 3).astype(np.float32)
+fastjson.dumps_ndarray(points)
+# → '[[0.123,0.456,0.789],[...],...]'
+
+# NaN handling
+fastjson.dumps_ndarray(points, nan="null")   # NaN/Inf → null
+fastjson.dumps_ndarray(points, nan="skip")   # skip rows containing NaN/Inf
+
+# Fixed decimal places (reduces output size)
+fastjson.dumps_ndarray(points, precision=3)
+```
+
+- Supported dtypes: `float32`, `float64`
+- Supported dimensions: 1D, 2D
+- Requires C-contiguous layout (use `np.ascontiguousarray()` if needed)
+- numpy is an optional dependency — `dumps()` works without it
+
+## When It's Fast
 
 `fastjson` is meant for “big numeric arrays → JSON”, e.g. time series or embedding-like vectors:
 

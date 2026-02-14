@@ -50,6 +50,20 @@ static int buffer_append_finite_double(Buffer* buf, double x) {
     return 0;
 }
 
+static int buffer_append_finite_float(Buffer* buf, float x) {
+    char buf_float[zmij_float_buffer_size];
+    size_t len = zmij_write_float(buf_float, sizeof(buf_float), x);
+    if (buffer_append(buf, buf_float, len) < 0) {
+        return -1;
+    }
+    if (needs_dot0(buf_float, len)) {
+        if (buffer_append(buf, ".0", 2) < 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static int buffer_append_double_json(Buffer* buf, double x, int allow_nan) {
     if (!isfinite(x)) {
         if (!allow_nan) {
@@ -497,12 +511,316 @@ dumps(PyObject* self, PyObject* args, PyObject* kwargs) {
     return dumps_via_json(obj, ensure_ascii, allow_nan, separators);
 }
 
+/* ======================================================================
+ * dumps_ndarray() - Fast ndarray serialization via PEP 3118 buffer protocol
+ * ====================================================================== */
+
+typedef enum {
+    NAN_RAISE = 0,
+    NAN_NULL  = 1,
+    NAN_SKIP  = 2,
+} NanMode;
+
+static int parse_nan_mode(PyObject* nan_arg, NanMode* out) {
+    if (nan_arg == NULL || nan_arg == Py_None) {
+        *out = NAN_RAISE;
+        return 0;
+    }
+    if (!PyUnicode_Check(nan_arg)) {
+        PyErr_SetString(PyExc_TypeError,
+            "nan parameter must be 'raise', 'null', or 'skip'");
+        return -1;
+    }
+    if (PyUnicode_CompareWithASCIIString(nan_arg, "raise") == 0) {
+        *out = NAN_RAISE;
+    } else if (PyUnicode_CompareWithASCIIString(nan_arg, "null") == 0) {
+        *out = NAN_NULL;
+    } else if (PyUnicode_CompareWithASCIIString(nan_arg, "skip") == 0) {
+        *out = NAN_SKIP;
+    } else {
+        PyErr_Format(PyExc_ValueError,
+            "nan parameter must be 'raise', 'null', or 'skip', got '%U'",
+            nan_arg);
+        return -1;
+    }
+    return 0;
+}
+
+typedef struct {
+    NanMode nan_mode;
+    int use_precision;
+    int precision;
+    char format;  /* 'f' = float32, 'd' = float64 */
+} FormatConfig;
+
+static int buffer_append_precision_double(Buffer* buf, double x, int precision) {
+    char tmp[64];
+    int len = snprintf(tmp, sizeof(tmp), "%.*f", precision, x);
+    if (len < 0 || len >= (int)sizeof(tmp)) {
+        PyErr_SetString(PyExc_RuntimeError, "snprintf overflow in precision formatting");
+        return -1;
+    }
+    return buffer_append(buf, tmp, (size_t)len);
+}
+
+/*
+ * Format a single element from the data pointer.
+ * Returns: 1 = written, 0 = skipped (NAN_SKIP), -1 = error
+ */
+static int format_element(Buffer* buf, const void* ptr, const FormatConfig* cfg) {
+    if (cfg->format == 'f') {
+        float x;
+        memcpy(&x, ptr, sizeof(float));
+        if (!isfinite(x)) {
+            switch (cfg->nan_mode) {
+            case NAN_RAISE:
+                PyErr_SetString(PyExc_ValueError,
+                    "Out of range float values are not JSON compliant");
+                return -1;
+            case NAN_NULL:
+                return buffer_append(buf, "null", 4) < 0 ? -1 : 1;
+            case NAN_SKIP:
+                return 0;
+            }
+        }
+        if (cfg->use_precision)
+            return buffer_append_precision_double(buf, (double)x, cfg->precision) < 0 ? -1 : 1;
+        return buffer_append_finite_float(buf, x) < 0 ? -1 : 1;
+    } else {
+        double x;
+        memcpy(&x, ptr, sizeof(double));
+        if (!isfinite(x)) {
+            switch (cfg->nan_mode) {
+            case NAN_RAISE:
+                PyErr_SetString(PyExc_ValueError,
+                    "Out of range float values are not JSON compliant");
+                return -1;
+            case NAN_NULL:
+                return buffer_append(buf, "null", 4) < 0 ? -1 : 1;
+            case NAN_SKIP:
+                return 0;
+            }
+        }
+        if (cfg->use_precision)
+            return buffer_append_precision_double(buf, x, cfg->precision) < 0 ? -1 : 1;
+        return buffer_append_finite_double(buf, x) < 0 ? -1 : 1;
+    }
+}
+
+static int is_nonfinite_element(const void* ptr, char format) {
+    if (format == 'f') {
+        float x;
+        memcpy(&x, ptr, sizeof(float));
+        return !isfinite(x);
+    } else {
+        double x;
+        memcpy(&x, ptr, sizeof(double));
+        return !isfinite(x);
+    }
+}
+
+static PyObject*
+serialize_1d(const char* data, Py_ssize_t n, Py_ssize_t itemsize,
+             const FormatConfig* cfg)
+{
+    Buffer buf;
+    if (buffer_init(&buf, (size_t)n * 24 + 2) < 0) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    if (buffer_append_char(&buf, '[') < 0) goto error;
+
+    int need_comma = 0;
+    for (Py_ssize_t i = 0; i < n; i++) {
+        const void* ptr = data + i * itemsize;
+
+        if (cfg->nan_mode == NAN_SKIP && is_nonfinite_element(ptr, cfg->format))
+            continue;
+
+        if (need_comma) {
+            if (buffer_append_char(&buf, ',') < 0) goto error;
+        }
+
+        int rc = format_element(&buf, ptr, cfg);
+        if (rc < 0) goto error;
+        need_comma = 1;
+    }
+
+    if (buffer_append_char(&buf, ']') < 0) goto error;
+
+    {
+        PyObject* result = PyUnicode_DecodeASCII(buf.data, buf.size, NULL);
+        buffer_free(&buf);
+        return result;
+    }
+
+error:
+    buffer_free(&buf);
+    if (!PyErr_Occurred()) PyErr_NoMemory();
+    return NULL;
+}
+
+static int row_has_nonfinite(const char* row_data, Py_ssize_t cols,
+                             Py_ssize_t itemsize, char format)
+{
+    for (Py_ssize_t j = 0; j < cols; j++) {
+        if (is_nonfinite_element(row_data + j * itemsize, format))
+            return 1;
+    }
+    return 0;
+}
+
+static PyObject*
+serialize_2d(const char* data, Py_ssize_t rows, Py_ssize_t cols,
+             Py_ssize_t itemsize, const FormatConfig* cfg)
+{
+    Buffer buf;
+    size_t est = (size_t)rows * (size_t)cols * 24 + (size_t)rows * 2 + 2;
+    if (buffer_init(&buf, est) < 0) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    if (buffer_append_char(&buf, '[') < 0) goto error;
+
+    int need_row_comma = 0;
+    for (Py_ssize_t i = 0; i < rows; i++) {
+        const char* row_data = data + i * cols * itemsize;
+
+        if (cfg->nan_mode == NAN_SKIP &&
+            row_has_nonfinite(row_data, cols, itemsize, cfg->format))
+            continue;
+
+        if (need_row_comma) {
+            if (buffer_append_char(&buf, ',') < 0) goto error;
+        }
+
+        if (buffer_append_char(&buf, '[') < 0) goto error;
+
+        for (Py_ssize_t j = 0; j < cols; j++) {
+            if (j > 0) {
+                if (buffer_append_char(&buf, ',') < 0) goto error;
+            }
+            const void* ptr = row_data + j * itemsize;
+            int rc = format_element(&buf, ptr, cfg);
+            if (rc < 0) goto error;
+        }
+
+        if (buffer_append_char(&buf, ']') < 0) goto error;
+        need_row_comma = 1;
+    }
+
+    if (buffer_append_char(&buf, ']') < 0) goto error;
+
+    {
+        PyObject* result = PyUnicode_DecodeASCII(buf.data, buf.size, NULL);
+        buffer_free(&buf);
+        return result;
+    }
+
+error:
+    buffer_free(&buf);
+    if (!PyErr_Occurred()) PyErr_NoMemory();
+    return NULL;
+}
+
+static PyObject*
+py_dumps_ndarray(PyObject* self, PyObject* args, PyObject* kwargs)
+{
+    PyObject* array_obj;
+    PyObject* nan_arg = NULL;
+    PyObject* precision_arg = NULL;
+
+    static char* kwlist[] = {"array", "nan", "precision", NULL};
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|$OO", kwlist,
+                                     &array_obj, &nan_arg, &precision_arg))
+        return NULL;
+
+    NanMode nan_mode;
+    if (parse_nan_mode(nan_arg, &nan_mode) < 0)
+        return NULL;
+
+    int use_precision = 0;
+    int precision = 0;
+    if (precision_arg != NULL && precision_arg != Py_None) {
+        precision = (int)PyLong_AsLong(precision_arg);
+        if (precision == -1 && PyErr_Occurred())
+            return NULL;
+        if (precision < 0 || precision > 20) {
+            PyErr_SetString(PyExc_ValueError, "precision must be between 0 and 20");
+            return NULL;
+        }
+        use_precision = 1;
+    }
+
+    Py_buffer view;
+    if (PyObject_GetBuffer(array_obj, &view, PyBUF_C_CONTIGUOUS | PyBUF_FORMAT) < 0)
+        return NULL;
+
+    if (view.ndim != 1 && view.ndim != 2) {
+        PyBuffer_Release(&view);
+        PyErr_Format(PyExc_ValueError,
+            "only 1D and 2D arrays are supported, got %dD", view.ndim);
+        return NULL;
+    }
+
+    char format;
+    Py_ssize_t itemsize;
+    if (view.format != NULL && view.format[0] == 'f' && view.format[1] == '\0') {
+        format = 'f';
+        itemsize = 4;
+    } else if (view.format != NULL && view.format[0] == 'd' && view.format[1] == '\0') {
+        format = 'd';
+        itemsize = 8;
+    } else {
+        PyBuffer_Release(&view);
+        PyErr_Format(PyExc_TypeError,
+            "only float32 ('f') and float64 ('d') dtypes are supported, got '%s'",
+            view.format ? view.format : "(null)");
+        return NULL;
+    }
+
+    if (view.itemsize != itemsize) {
+        PyBuffer_Release(&view);
+        PyErr_SetString(PyExc_RuntimeError, "itemsize mismatch");
+        return NULL;
+    }
+
+    FormatConfig cfg;
+    cfg.nan_mode = nan_mode;
+    cfg.use_precision = use_precision;
+    cfg.precision = precision;
+    cfg.format = format;
+
+    PyObject* result;
+    if (view.ndim == 1) {
+        result = serialize_1d((const char*)view.buf, view.shape[0],
+                              itemsize, &cfg);
+    } else {
+        result = serialize_2d((const char*)view.buf, view.shape[0], view.shape[1],
+                              itemsize, &cfg);
+    }
+
+    PyBuffer_Release(&view);
+    return result;
+}
+
 static PyMethodDef fastjson_methods[] = {
     {"dumps", (PyCFunction)dumps, METH_VARARGS | METH_KEYWORDS,
      "dumps(obj, *, ensure_ascii=True, separators=(', ', ': '), allow_nan=True) -> str\n\n"
      "Serialize Python object to JSON string.\n\n"
      "Fast path: list/tuple of floats is formatted directly in C using vitaut/zmij.\n"
      "Slow path: delegates to standard json module for other types."},
+    {"dumps_ndarray", (PyCFunction)py_dumps_ndarray, METH_VARARGS | METH_KEYWORDS,
+     "dumps_ndarray(array, *, nan='raise', precision=None) -> str\n\n"
+     "Serialize a 1D or 2D C-contiguous float32/float64 array to a JSON string.\n\n"
+     "Uses PEP 3118 buffer protocol; works with numpy.ndarray and array.array.\n\n"
+     "Parameters:\n"
+     "  array: object supporting the buffer protocol\n"
+     "  nan: 'raise' (default), 'null', or 'skip'\n"
+     "  precision: None (shortest representation) or int 0-20 (fixed decimal places)\n"},
     {NULL, NULL, 0, NULL}
 };
 

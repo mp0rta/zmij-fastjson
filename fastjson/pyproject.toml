@@ -32,3 +32,4 @@ Issues = "https://github.com/mp0rta/zmij-fastjson/issues"
 
 [project.optional-dependencies]
 dev = ["pytest"]
+numpy = ["numpy>=1.20"]

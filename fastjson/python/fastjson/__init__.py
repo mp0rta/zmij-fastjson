@@ -8,6 +8,7 @@ import json as _json
 
 try:
     from ._fastjson import dumps as _native_dumps
+    from ._fastjson import dumps_ndarray as _native_dumps_ndarray
 
     _NATIVE = True
 except ImportError as e:
@@ -120,6 +121,31 @@ def load(fp: Any, *args: Any, **kwargs: Any) -> Any:
     return _json.load(fp, *args, **kwargs)
 
 
+def dumps_ndarray(
+    array: Any,
+    *,
+    nan: str = "raise",
+    precision: int | None = None,
+) -> str:
+    """Serialize a 1D or 2D C-contiguous float array to a JSON string.
+
+    Parameters
+    ----------
+    array : numpy.ndarray or buffer-protocol object
+        Must be C-contiguous with dtype float32 or float64.
+    nan : str
+        How to handle NaN/Inf: 'raise' (default), 'null', or 'skip'.
+    precision : int or None
+        If None, use shortest representation. If int 0-20, fixed decimal places.
+
+    Returns
+    -------
+    str
+        JSON string like "[1.0,2.0,3.0]" (1D) or "[[1.0,2.0],[3.0,4.0]]" (2D).
+    """
+    return _native_dumps_ndarray(array, nan=nan, precision=precision)
+
+
 JSONEncoder = _json.JSONEncoder
 JSONDecoder = _json.JSONDecoder
 JSONDecodeError = _json.JSONDecodeError
@@ -128,6 +154,7 @@ JSONDecodeError = _json.JSONDecodeError
 __all__ = [
     "dump",
     "dumps",
+    "dumps_ndarray",
     "load",
     "loads",
     "JSONDecodeError",

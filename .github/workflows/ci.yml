@@ -70,6 +70,61 @@ jobs:
           Set-Location $tmp.FullName
           & "$env:GITHUB_WORKSPACE\\.venv-test\\Scripts\\python" -m pytest -q --import-mode=importlib "$env:GITHUB_WORKSPACE\\fastjson\\tests\\"
 
+  build-install-test-numpy:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
+
+      - name: Upgrade build tooling
+        run: python -m pip install -U pip setuptools wheel build pytest
+
+      - name: Build wheel
+        run: python -m build fastjson -w
+
+      - name: Create clean venv with numpy (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          python -m venv .venv-numpy
+          .venv-numpy/bin/python -m pip install -U pip
+          .venv-numpy/bin/python -m pip install fastjson/dist/*.whl
+          .venv-numpy/bin/python -m pip install numpy pytest
+
+      - name: Create clean venv with numpy (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          python -m venv .venv-numpy
+          .venv-numpy\Scripts\python -m pip install -U pip
+          $fastjsonWheels = @(Get-ChildItem -Path fastjson/dist -Filter "*.whl")
+          if ($fastjsonWheels.Count -ne 1) { throw "Expected exactly 1 fastjson wheel, found $($fastjsonWheels.Count)" }
+          .venv-numpy\Scripts\python -m pip install $fastjsonWheels[0].FullName
+          .venv-numpy\Scripts\python -m pip install numpy pytest
+
+      - name: Run tests including ndarray tests (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          tmpdir="$(mktemp -d)"
+          cd "$tmpdir"
+          "$GITHUB_WORKSPACE/.venv-numpy/bin/python" -m pytest -q --import-mode=importlib "$GITHUB_WORKSPACE/fastjson/tests/"
+
+      - name: Run tests including ndarray tests (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $tmp = New-Item -ItemType Directory -Force -Path (Join-Path $env:RUNNER_TEMP "pytest-tmp-numpy")
+          Set-Location $tmp.FullName
+          & "$env:GITHUB_WORKSPACE\\.venv-numpy\\Scripts\\python" -m pytest -q --import-mode=importlib "$env:GITHUB_WORKSPACE\\fastjson\\tests\\"
+
   sdist-install-test:
     runs-on: ${{ matrix.os }}
     strategy:

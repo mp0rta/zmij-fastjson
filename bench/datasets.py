@@ -129,6 +129,22 @@ def macro_sensor_frame(n_series: int, n_points: int, seed: int) -> Dict[str, Any
     return frame
 
 
+# ---------- ndarray datasets (numpy lazy-imported) ----------
+
+def ndarray_pointcloud(rows: int, cols: int, dtype: str, seed: int):
+    """2D numpy ndarray simulating a point cloud (e.g. XYZ or XYZI)."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    return rng.standard_normal((rows, cols)).astype(dtype)
+
+
+def ndarray_timeseries(n: int, dtype: str, seed: int):
+    """1D numpy ndarray simulating a time series vector."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    return rng.standard_normal(n).astype(dtype)
+
+
 def mostly_floats_with_nulls(n: int, seed: int, null_every: int = 20) -> List[Any]:
     """
     A mixed list that is mostly floats, with periodic None values.
